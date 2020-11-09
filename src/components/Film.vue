@@ -150,7 +150,7 @@
             prop="name"
             label="片名">
           </el-table-column>
-          <el-table-column v-if="setting.searchAllSites"
+          <el-table-column v-if="searchGroup !== '站内'"
             sortable
             :sort-method="(a , b) => sortByLocaleCompare(a.site.name, b.site.name)"
             prop="site"
@@ -216,7 +216,7 @@
 </template>
 <script>
 import { mapMutations } from 'vuex'
-import { star, history, search, sites } from '../lib/dexie'
+import { star, history, search, sites, setting } from '../lib/dexie'
 import zy from '../lib/site/tools'
 import Waterfall from 'vue-waterfall-plugin'
 import InfiniteLoading from 'vue-infinite-loading'
@@ -574,8 +574,12 @@ export default {
     },
     searchEvent () {
       const wd = this.searchTxt
-      this.setting.searchAllSites = this.searchGroup === '全部'
-      if (this.setting.searchAllSites) {
+      if (this.setting.searchGroup !== this.searchGroup) {
+        this.setting.searchGroup = this.searchGroup
+        setting.update(this.setting)
+      }
+      if (!wd) return
+      if (this.searchGroup === '全部') {
         this.searchAllSitesEvent(this.sites, wd)
       } else {
         this.searchSingleSiteEvent(this.site, wd)
@@ -651,6 +655,11 @@ export default {
             this.selectedSiteName = this.sites[0].name
           }
         }
+        // this.searchGroups = [...new Set(this.sites.map(site => site.group))]
+        this.searchGroups.unshift('站内')
+        this.searchGroups.push('全部')
+        this.searchGroup = this.setting.searchGroup
+        if (this.searchGroup === undefined) setting.find().then(res => { this.searchGroup = res.searchGroup })
       })
     },
     getSearchGroups () {
@@ -661,7 +670,6 @@ export default {
   created () {
     this.getAllSites()
     this.getSearchHistory()
-    this.getSearchGroups()
   },
   mounted () {
     window.addEventListener('resize', () => {
