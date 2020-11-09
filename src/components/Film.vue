@@ -345,6 +345,8 @@ export default {
       if (this.searchTxt.length > 0 && this.searchGroup === '站内') {
         this.searchEvent()
       } else {
+        this.searchTxt = ''
+        this.show.find = false
         this.classList = []
         this.type = {}
         this.getClass().then(res => {
@@ -650,7 +652,8 @@ export default {
             this.selectedSiteName = this.sites[0].name
           }
         }
-        // this.searchGroups = [...new Set(this.sites.map(site => site.group))]
+        this.searchGroups = [...new Set(this.sites.map(site => site.group))]
+        if (this.searchGroups.length === 1) this.searchGroups = []
         this.searchGroups.unshift('站内')
         this.searchGroups.push('全部')
         this.searchGroup = this.setting.searchGroup
