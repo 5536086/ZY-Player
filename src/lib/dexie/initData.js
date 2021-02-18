@@ -5,13 +5,25 @@ const setting = [
     shortcut: true,
     view: 'picture',
     externalPlayer: '',
+    searchGroup: '全站',
     excludeRootClasses: true,
     excludeR18Films: true,
     forwardTimeInSec: 5,
+    waitingTimeInSec: 15,
     starViewMode: 'picture',
     recommendationViewMode: 'picture',
     historyViewMode: 'picture',
-    password: ''
+    searchViewMode: 'picture',
+    password: '',
+    proxy: {
+      type: 'none',
+      scheme: '',
+      url: '',
+      port: ''
+    },
+    allowPassWhenIptvCheck: true,
+    autocleanWhenIptvCheck: false,
+    autoChangeSourceWhenIptvStalling: true
   }
 ]
 
@@ -58,7 +70,7 @@ const localKey = [
   },
   {
     name: 'escape',
-    desc: '退出全屏',
+    desc: '退出全屏/精简模式',
     key: 'esc'
   },
   {
@@ -80,6 +92,21 @@ const localKey = [
     name: 'end',
     desc: '跳到视频结束位置',
     key: 'end'
+  },
+  {
+    name: 'startPosition',
+    desc: '标记片头',
+    key: 'ctrl+home'
+  },
+  {
+    name: 'endPosition',
+    desc: '标记片尾',
+    key: 'ctrl+end'
+  },
+  {
+    name: 'clearPosition',
+    desc: '清除标记',
+    key: 'ctrl+del'
   },
   {
     name: 'opacityUp',
@@ -105,6 +132,11 @@ const localKey = [
     name: 'mini',
     desc: '进入或退出mini模式',
     key: 'alt+m'
+  },
+  {
+    name: 'resetMini',
+    desc: '重置mini窗口',
+    key: 'ctrl+0'
   }
 ]
 

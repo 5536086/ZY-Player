@@ -24,6 +24,8 @@
       }
     }
     .vs-input{
+      color: var(--g-fc-1);
+      background-color: var(--g-bgc-1);
       input{
         color: var(--g-fc-1);
         &::-webkit-input-placeholder{
@@ -37,10 +39,8 @@
     background-color: var(--g-bgc-1);
     input{
       color: var(--g-fc-1);
-      background-color: var(--g-bgc-1);
     }
   }
-
   .zy-scroll{
     &:hover{
       &::-webkit-scrollbar-thumb {
@@ -131,6 +131,12 @@
                 border-color: var(--g-c-8);
               }
             }
+            .selected {
+              background-color: var(--g-c-5);
+              &:hover{
+                background-color: var(--g-c-5);
+              }
+            }
           }
         }
       }
@@ -139,6 +145,13 @@
   .play{
     background-color: var(--g-bgc-1);
     box-shadow: var(--g-bsc);
+    .el-input{
+      input{
+        background-color: var(--g-bgc-1);
+        border: 1px solid var(--g-bgc-1);
+        color: var(--g-fc-2);
+      }
+    }
     .title{
       color: var(--g-fc-1);
       .right {
@@ -148,6 +161,21 @@
       }
     }
     .box{
+      .title{
+        .right{
+          color: var(--g-fc-2);
+          svg{
+            stroke: var(--g-c-5);
+            stroke-width: 1;
+            fill: none;
+            &:hover{
+              stroke: var(--g-c-8);
+              stroke-width: 1.5;
+              fill: var(--g-c-2);
+            }
+          }
+        }
+      }
       .more{
         span{
           svg{
@@ -204,6 +232,14 @@
             }
             &:hover{
               background-color: var(--g-c-3);
+            }
+          }
+        }
+        .list-channels{
+          .btn{
+            color: var(--g-fc-1);
+            &:hover{
+              text-decoration:underline;
             }
           }
         }
@@ -300,55 +336,62 @@
     background-color: var(--g-bgc-1);
     box-shadow: var(--g-bsc);
   }
+
   // Page of list using table and picture
   .listpage{
     color: var(--g-fc-2);
-    .listpage-header{
-        border-bottom-color: var(--g-c-3);
-        .btn{
-          &:hover{
-            color: var(--g-fc-3)
-          }
+    .listpage-header-divider{
+      background-color: var(--g-bgc-1);
+      .el-divider__text {
+        background-color: var(--g-bgc-2);
+      }
+      .el-button{
+        background-color: var(--g-bgc-2);
+        color: var(--g-fc-2);
+        &:hover{
+          color: var(--g-fc-3)
         }
-        .el-button{
-          background-color: var(--g-bgc-2);
+      }
+    }
+    .listpage-header, .toolbar{
+      border-bottom-color: var(--g-c-3);
+      .btn{
+        &:hover{
+          color: var(--g-fc-3)
+        }
+      }
+      .el-button{
+        background-color: var(--g-bgc-2);
+        color: var(--g-fc-2);
+        &:hover{
+          color: var(--g-fc-3)
+        }
+      }
+      .el-input{
+        input{
+          background-color: var(--g-bgc-1);
+          border: 1px solid var(--g-bgc-1);
           color: var(--g-fc-2);
+        }
+      }
+      .el-input-group__prepend{
+        background-color: var(--g-bgc-1);
+      }
+      .popper {
+        color: var(--g-fc-1);
+        background-color: var(--g-bgc-1);
+        box-shadow: var(--g-bsc);
+        li {
+          color: var(--g-fc-1);
+          background-color: var(--g-bgc-1);
           &:hover{
-            color: var(--g-fc-3)
+            background-color: var(--g-bgc-2);
           }
         }
-        .el-input{
-          input{
-            background-color: var(--g-bgc-1);
-            border: 1px solid var(--g-bgc-1);
-            color: var(--g-fc-2);
-          }
-        }
-        .el-select-dropdown{
-          color: var(--g-fc-1);
-          border: none;
-          background-color: var(--g-bgc-1);
-          box-shadow: var(--g-bsc);
-        }
-        .el-select-dropdown__item{
-          color: var(--g-fc-1);
-          border: none;
-          background-color: var(--g-bgc-1);
-        }
-        .el-select-dropdown__item.hover{
-          background-color: var(--g-bgc-2);
-          box-shadow: var(--g-bsc);
-        }
-        .el-select-dropdown__item.selected{
-          color: var(--g-fc-1);
-          background-color: var(--g-bgc-2);
-          box-shadow: var(--g-bsc);
-        }
-        .el-select-dropdown__item.selected.hover{
-          color: var(--g-fc-1);
-          background-color: var(--g-bgc-2);
-          box-shadow: var(--g-bsc);
-        }
+      }
+      .popper__arrow, .popper__arrow::after{
+        border-bottom-color: var(--g-bgc-1);
+      }
     }
     .listpage-body{
       color: var(--g-fc-1);
@@ -363,8 +406,8 @@
           background: var(--g-bgc-1);
         }
       }
+      /* 设置el-table的样式*/
       .show-table{
-       /* 设置el-table的样式*/
         .el-table{
           color: var(--g-fc-1);
           background-color: var(--g-bgc-1);

@@ -95,9 +95,6 @@
     text-indent: 10px;
   }
 }
-.zy-highlighted{
-  color: var(--highlight-color);
-}
 // scroll
 .zy-scroll{
   &::-webkit-scrollbar{
@@ -126,7 +123,7 @@
   border-radius: 5px;
   display: flex;
   flex-direction: column;
-  .listpage-header{
+  .listpage-header, .toolbar{
     height: 60px;
     width: 100%;
     display: flex;
@@ -146,6 +143,24 @@
         cursor: pointer;
       }
     }
+    .el-autocomplete{
+      .el-input-group__prepend{
+        border: none;
+        .el-select{
+          width: 100px;
+          .el-input, .el-input__inner{
+            width: 100%;
+            border: none;
+          }
+        }
+      }
+      .el-input .el-input__inner{
+        width: 200px;
+      }
+      .el-input-group__append{
+        border: none;
+      }
+    }
     .is-loading:before {
       background-color: none !important;
     }
@@ -153,9 +168,46 @@
       font-size: 1rem;
       width: 200px;
     }
-    .el-select-dropdown__item{
-      font-size: 1rem;
+    .popper {
+      font-size: 1rem;;
+      border: none;
+      li {
+        font-size: 1rem;
+        border: none;
+      }
+      .el-select-dropdown__item.selected.hover{ //是上游的bug吗？临时性修补
+        background-color: transparent;
+      }
+      
+      .el-select-dropdown__wrap{
+        max-height: 574px
+      }
     }
+    > span{
+      .el-input-number{
+        width:120px;
+        .el-input{
+          width: 100px;
+        }
+        .el-input__inner{
+          padding-left: 5px;
+          padding-right: 5px;
+          width: 88px;
+        }
+        .el-input-number__increase, .el-input-number__decrease {
+          background-color: inherit;
+          border: none;
+        }
+      }
+    }
+  }
+  .el-divider{
+    .el-divider--horizontal{
+      margin: 12px 0;
+    }
+  }
+  .toolbar{
+    z-index: 5;
   }
   .listpage-body{
     height: calc(100% - 60px);
@@ -201,6 +253,9 @@
           border-radius: 10px;
           position: absolute;
         }
+      }
+      .disableExpand div.el-table__expand-icon{
+        display: none;
       }
       .el-input{
         width: 200px;
@@ -252,6 +307,19 @@
             font-weight: bolder;
             text-align: center;
             transform: rotate(45deg);
+          }
+          .site{
+            position: absolute;
+            top: 0%;
+            left: 0%;
+            width: 100%;
+            background-color: #111111aa;
+            color:#2f90b9;
+            height: 30px;
+            line-height: 30px;
+            font-size: 14px;
+            font-weight: bolder;
+            text-align: center;
           }
           .progress{
             position: absolute;

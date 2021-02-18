@@ -5,22 +5,10 @@
       <div class="info">
         <a @click="linkOpen('http://zyplayer.fun/')">官网</a>
         <a @click="linkOpen('https://github.com/Hunlongyu/ZY-Player')">Github</a>
-        <a @click="linkOpen('https://github.com/Hunlongyu/ZY-Player/issues')">当前版本v{{pkg.version}} 反馈</a>
-        <a style="color:#38dd77" @click="quitAndInstall()" v-show="latestVersion !== pkg.version" >最新版本v{{latestVersion}}</a>
-      </div>
-      <div class="view">
-        <div class="title">视图</div>
-        <div class="view-box">
-          <div class="zy-select" @mouseleave="show.view = false">
-            <div class="vs-placeholder" @click="show.view = true">默认视图</div>
-            <div class="vs-options" v-show="show.view">
-              <ul class="zy-scroll">
-                <li :class="d.view === 'picture' ? 'active' : ''" @click="changeView('picture')">海报</li>
-                <li :class="d.view === 'table' ? 'active' : ''" @click="changeView('table')">列表</li>
-              </ul>
-            </div>
-          </div>
-        </div>
+        <a @click="linkOpen('https://github.com/Hunlongyu/ZY-Player/releases/tag/v' + pkg.version)">v{{pkg.version}}更新日志</a>
+        <a @click="linkOpen('https://github.com/Hunlongyu/ZY-Player/issues/80')">常见问题</a>
+        <a @click="linkOpen('https://github.com/Hunlongyu/ZY-Player/issues')">反馈建议</a>
+        <a style="color:#38dd77" @click="openUpdate()" v-show="update.find" >最新版本v{{update.version}}</a>
       </div>
       <div class="shortcut">
         <div class="title">快捷键</div>
@@ -40,13 +28,16 @@
           <div class="zy-select">
             <div class="vs-placeholder vs-noAfter" @click="impShortcut">导入</div>
           </div>
+          <div class="zy-select">
+            <div class="vs-placeholder vs-noAfter" @click="resetShortcut">重置</div>
+          </div>
         </div>
       </div>
-      <div class="shortcut">
+      <div class="shortcut" title="清理缓存后图片资源需重新下载，不建议清理，软件会根据磁盘空间动态管理缓存大小">
         <div class="title">缓存</div>
         <div class="shortcut-box">
           <div class="zy-select">
-            <div class="vs-placeholder vs-noAfter" @click="clearCache">清理视频缓存</div>
+            <div class="vs-placeholder vs-noAfter" @click="clearCache">清理缓存</div>
           </div>
         </div>
       </div>
@@ -73,13 +64,49 @@
           </div>
       </div>
       <div class="site">
+        <div class="title">直播源管理</div>
+        <div class="site-box">
+          <div class="zy-select">
+            <div class="vs-placeholder vs-noAfter" @click="view = 'IPTV'">编辑直播源</div>
+          </div>
+          <div class="zy-input">
+           <input type="checkbox" v-model = "d.allowPassWhenIptvCheck" @change="updateSettingEvent"> 检测时自动跳过停用源
+          </div>
+          <div class="zy-input">
+           <input type="checkbox" v-model = "d.autocleanWhenIptvCheck" @change="updateSettingEvent"> 检测时自动清理无效源
+          </div>
+          <div class="zy-input">
+          <input type="checkbox" v-model = "d.autoChangeSourceWhenIptvStalling" @change="updateSettingEvent">
+          卡顿时自动换源换台:<input style="width:50px" type="number" min=0 v-model.number = "d.waitingTimeInSec" @change="updateSettingEvent">秒
+          </div>
+        </div>
+      </div>
+      <div class="site">
         <div class="title">源管理</div>
         <div class="site-box">
           <div class="zy-select">
             <div class="vs-placeholder vs-noAfter" @click="editSitesEvent">编辑源</div>
           </div>
+          <div class="zy-select">
+            <div class="vs-placeholder vs-noAfter" @click="show.configDefaultParseUrlDialog = true">设置默认解析接口</div>
+          </div>
           <div class="zy-input" @click="toggleExcludeRootClasses">
            <input type="checkbox" v-model = "d.excludeRootClasses" @change="updateSettingEvent"> 屏蔽主分类
+          </div>
+        </div>
+      </div>
+      <div class="site">
+        <div class="title">网络</div>
+        <div class="site-box">
+          <div class="zy-select" @mouseleave="show.proxy = false">
+            <div class="vs-placeholder" @click="show.proxy = true">代理设置</div>
+            <div class="vs-options" v-if="show.proxy">
+              <ul class="zy-scroll">
+                <li :class="d.proxy.type === 'none' ? 'active' : ''" @click="changeProxyType('none')">不使用代理</li>
+                <!-- <li :class="d.proxy.type === 'system' ? 'active' : ''" @click="changeProxyType('system')">使用系统代理</li> -->
+                <li :class="d.proxy.type === 'manual' ? 'active' : ''" @click="changeProxyType('manual')">手动指定代理</li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
@@ -128,6 +155,20 @@
         <span>所有资源来自网上, 该软件不参与任何制作, 上传, 储存等内容, 禁止传播违法资源. 该软件仅供学习参考, 请于安装后24小时内删除.</span>
       </div>
     </div>
+    <div> <!-- 设置默认解析接口 -->
+      <el-dialog :visible.sync="show.configDefaultParseUrlDialog" v-if='show.configDefaultParseUrlDialog' title="设置默认解析接口" :append-to-body="true" @close="closeDialog">
+        <el-form label-width="45px" label-position="left">
+          <el-form-item label="URL:" prop='defaultParseURL'>
+            <el-input v-model="setting.defaultParseURL" :autosize="{ minRows: 2, maxRows: 4}" type="textarea" placeholder="请输入解析接口地址，为空时会自动设置，重置时会自动更新默认接口地址"/>
+          </el-form-item>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="closeDialog">取消</el-button>
+          <el-button type="danger" @click="get7kParseURL">重置</el-button>
+          <el-button type="primary" @click="configDefaultParseURL">确定</el-button>
+        </span>
+      </el-dialog>
+    </div>
     <div> <!-- 输入密码页面 -->
       <el-dialog :visible.sync="show.checkPasswordDialog" v-if='show.checkPasswordDialog' :append-to-body="true" @close="closeDialog" width="300px">
         <el-form label-width="75px" label-position="left">
@@ -154,15 +195,56 @@
         </span>
       </el-dialog>
     </div>
+    <div> <!-- 代理设置界面 -->
+      <el-dialog :visible.sync="show.proxyDialog" :append-to-body="true" @close="closeDialog" width="400px">
+        <el-form label-width="50px" label-position="left" size="small">
+          <el-form-item label="协议: " prop='scheme'>
+            <el-col :span="15">
+              <el-select v-model="proxy.scheme" placeholder="请选择协议类型">
+                <el-option label="http" value="http"></el-option>
+                <el-option label="socks5" value="socks5"></el-option>
+              </el-select>
+            </el-col>
+          </el-form-item>
+          <el-form-item label="地址: " prop='url'>
+            <el-col :span="15">
+              <el-input v-model="proxy.url" placeholder="地址" />
+            </el-col>
+            <el-col class="line" :span="2" style="text-align: center;">:</el-col>
+            <el-col :span="7">
+              <el-input v-model="proxy.port" placeholder="端口" width="80px" />
+            </el-col>
+          </el-form-item>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="closeDialog">取消</el-button>
+          <el-button type="primary" @click="proxyConfirm">确定</el-button>
+        </span>
+      </el-dialog>
+    </div>
+    <div class="update" v-if="update.show">
+      <div class="wrapper">
+        <div class="body">
+          <div class="content" v-html="update.html"></div>
+        </div>
+        <div class="footer">
+          <el-button size="small" @click="closeUpdate">关闭</el-button>
+          <el-button size="small" v-show="update.showDownload" @click="startUpdate">更新</el-button>
+          <el-button size="small" v-show="!update.showDownload && !update.downloaded">正在更新...</el-button>
+          <el-button size="small" v-show="update.downloaded" @click="installUpdate">安装</el-button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 <script>
 import { mapMutations } from 'vuex'
 import pkg from '../../package.json'
 import { setting, sites, shortcut } from '../lib/dexie'
-import { sites as defaultSites } from '../lib/dexie/initData'
+import { sites as defaultSites, localKey as defaultShortcuts } from '../lib/dexie/initData'
 import { shell, clipboard, remote, ipcRenderer } from 'electron'
 import db from '../lib/dexie/dexie'
+import zy from '../lib/site/tools'
 export default {
   name: 'setting',
   data () {
@@ -175,12 +257,29 @@ export default {
         view: false,
         editPlayerPath: false,
         checkPasswordDialog: false,
-        changePasswordDialog: false
+        changePasswordDialog: false,
+        proxy: false,
+        proxyDialog: false,
+        configDefaultParseUrlDialog: false
       },
       d: { },
       latestVersion: pkg.version,
       inputPassword: '',
-      action: ''
+      action: '',
+      proxy: {
+        type: '',
+        scheme: '',
+        url: '',
+        port: ''
+      },
+      update: {
+        find: false,
+        version: '',
+        show: false,
+        html: '',
+        downloaded: false,
+        showDownload: true
+      }
     }
   },
   computed: {
@@ -210,6 +309,7 @@ export default {
       setting.find().then(res => {
         this.d = res
         this.setting = this.d
+        if (!this.setting.defaultParseURL) this.configDefaultParseURL()
       })
     },
     getSites () {
@@ -225,11 +325,6 @@ export default {
         this.shortcutList = res
       })
     },
-    changeView (e) {
-      this.d.view = e
-      this.updateSettingEvent()
-      this.show.view = false
-    },
     async clearCache () {
       const win = remote.getCurrentWindow()
       const ses = win.webContents.session
@@ -243,8 +338,26 @@ export default {
       this.setting = this.d
       setting.update(this.d)
     },
+    toggleExcludeR18Films () {
+      this.d.excludeR18Films = !this.d.excludeR18Films
+      this.updateSettingEvent()
+    },
     toggleExcludeRootClasses () {
       this.d.excludeRootClasses = !this.d.excludeRootClasses
+      this.updateSettingEvent()
+    },
+    async get7kParseURL () {
+      this.$message.info('正在获取7K源解析地址...')
+      const parseURL = await zy.get7kParseURL()
+      if (parseURL.startsWith('http')) {
+        this.$message.success('获取成功，更新应用默认解析接口地址...')
+        this.setting.defaultParseURL = parseURL
+      }
+    },
+    async configDefaultParseURL () {
+      if (!this.setting.defaultParseURL) await this.get7kParseURL()
+      this.d.defaultParseURL = this.setting.defaultParseURL.trim()
+      this.show.configDefaultParseUrlDialog = false
       this.updateSettingEvent()
     },
     selectLocalPlayer () {
@@ -257,7 +370,7 @@ export default {
       }
       remote.dialog.showOpenDialog(options).then(result => {
         if (!result.canceled) {
-          var playerPath = result.filePaths[0].replace(/\\/g, '/')
+          const playerPath = result.filePaths[0].replace(/\\/g, '/')
           this.$message.success('设定第三方播放器路径为：' + result.filePaths[0])
           this.d.externalPlayer = playerPath
           this.updateSettingEvent()
@@ -286,9 +399,17 @@ export default {
         this.view = 'EditSites'
       }
     },
-    closeDialog () {
+    async closeDialog () {
       this.show.checkPasswordDialog = false
       this.show.changePasswordDialog = false
+      this.show.configDefaultParseUrlDialog = false
+      if (this.show.proxyDialog) {
+        this.show.proxyDialog = false
+        this.setting.proxy.type = 'none'
+        await this.updateSettingEvent()
+        this.$message.info('取消使用代理')
+        zy.proxy()
+      }
       this.inputPassword = ''
     },
     checkPasswordEvent () {
@@ -340,9 +461,40 @@ export default {
         this.$message.info('已清空原数据')
         shortcut.add(json).then(e => {
           this.$message.success('已添加成功')
-          this.getSites()
+          this.getShortcut()
+          this.d.shortcutModified = true
+          this.updateSettingEvent()
         })
       })
+    },
+    resetShortcut () {
+      shortcut.clear().then(shortcut.add(defaultShortcuts)).then(res => {
+        this.getShortcut()
+        this.$message.success('快捷键已重置')
+        this.d.shortcutModified = true
+        this.updateSettingEvent()
+      })
+    },
+    async changeProxyType (e) {
+      this.d.proxy.type = e
+      if (e === 'manual') {
+        this.show.proxyDialog = true
+        this.proxy.scheme = this.setting.proxy.scheme
+        this.proxy.url = this.setting.proxy.url
+        this.proxy.port = this.setting.proxy.port
+      }
+      await this.updateSettingEvent()
+      this.show.proxy = false
+      zy.proxy()
+    },
+    async proxyConfirm () {
+      this.d.proxy.scheme = this.proxy.scheme
+      this.d.proxy.url = this.proxy.url
+      this.d.proxy.port = this.proxy.port
+      await this.updateSettingEvent()
+      this.show.proxyDialog = false
+      zy.proxy()
+      this.$message.info('开始使用代理')
     },
     clearDBEvent () {
       if (this.d.password) {
@@ -369,20 +521,29 @@ export default {
         return false
       }
     },
-    getLatestVersion () {
+    checkUpdate () {
       ipcRenderer.send('checkForUpdate')
       ipcRenderer.on('update-available', (e, info) => {
-        this.latestVersion = info.version
-      })
-      ipcRenderer.on('update-error', () => {
-        this.$message.warning = '更新出错.'
-      })
-      ipcRenderer.on('update-downloaded', () => {
-        this.$message.info = '下载完毕, 退出安装'
+        this.update.find = true
+        this.update.version = info.version
+        this.update.html = info.releaseNotes
       })
     },
-    quitAndInstall () {
-      this.$message.success('已开始下载更新，下载完毕后，将自动退出安装。')
+    openUpdate () {
+      this.update.show = true
+    },
+    closeUpdate () {
+      this.update.show = false
+    },
+    startUpdate () {
+      this.update.showDownload = false
+      ipcRenderer.send('downloadUpdate')
+      ipcRenderer.on('update-downloaded', () => {
+        this.update.downloaded = true
+        this.$message.success('更新已下载完成！Mac用户须手动点击“安装”，其它系统会在退出后自动安装')
+      })
+    },
+    installUpdate () {
       ipcRenderer.send('quitAndInstall')
     },
     createContextMenu () {
@@ -398,10 +559,10 @@ export default {
     }
   },
   created () {
-    this.getSites()
+    // this.getSites()
     this.getSetting()
     this.getShortcut()
-    this.getLatestVersion()
+    this.checkUpdate()
     this.createContextMenu()
   }
 }
@@ -438,22 +599,6 @@ export default {
       font-size: 14px;
       cursor: pointer;
     }
-  }
-  .view{
-    width: 100%;
-    padding: 20px;
-    margin-top: 20px;
-    .view-box{
-      margin-top: 10px;
-      .zy-select{
-        margin-right: 20px;
-      }
-    }
-  }
-  .search{
-    width: 100%;
-    padding: 20px;
-    margin-top: 20px;
   }
   .site{
     width: 100%;
@@ -548,6 +693,29 @@ export default {
     margin: 20px;
     font-size: 12px;
     color: #ff000066;
+  }
+  .update{
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(7, 17, 27, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    .wrapper{
+      background-color: #fff;
+      padding: 20px 50px 40px;
+      border-radius: 4px;
+      max-width: 500px;
+      max-height: 90%;
+      overflow: auto;
+      .footer{
+        display: flex;
+        justify-content: flex-end;
+      }
+    }
   }
 }
 </style>

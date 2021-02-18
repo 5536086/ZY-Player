@@ -24,6 +24,8 @@
       }
     }
     .vs-input{
+      color: var(--l-fc-1);
+      background-color: var(--l-bgc-1);
       input{
         color: var(--l-fc-1);
         &::-webkit-input-placeholder{
@@ -37,7 +39,6 @@
     background-color: var(--l-bgc-1);
     input{
       color: var(--l-fc-1);
-      background-color: var(--l-bgc-1);
     }
   }
   .zy-scroll{
@@ -130,6 +131,12 @@
                 border-color: var(--l-c-8);
               }
             }
+            .selected {
+              background-color: var(--l-c-5);
+              &:hover{
+                background-color: var(--l-c-5);
+              }
+            }
           }
         }
       }
@@ -138,6 +145,13 @@
   .play{
     background-color: var(--l-bgc-1);
     box-shadow: var(--l-bsc);
+    .el-input{
+      input{
+        background-color: var(--l-bgc-1);
+        border: 1px solid var(--l-bgc-1);
+        color: var(--l-fc-2);
+      }
+    }
     .title{
       color: var(--l-fc-1);
       .right {
@@ -147,6 +161,21 @@
       }
     }
     .box{
+      .title{
+        .right{
+          color: var(--l-fc-2);
+          svg{
+            stroke: var(--l-c-5);
+            stroke-width: 1;
+            fill: none;
+            &:hover{
+              stroke: var(--l-c-8);
+              stroke-width: 1.5;
+              fill: var(--l-c-2);
+            }
+          }
+        }
+      }
       .more{
         span{
           svg{
@@ -203,6 +232,14 @@
             }
             &:hover{
               background-color: var(--l-c-3);
+            }
+          }
+        }
+        .list-channels{
+          .btn{
+            color: var(--l-fc-1);
+            &:hover{
+              text-decoration:underline;
             }
           }
         }
@@ -299,10 +336,24 @@
     background-color: var(--l-bgc-1);
     box-shadow: var(--l-bsc);
   }
+
   // Page of list using table and picture
   .listpage{
     color: var(--l-fc-2);
-    .listpage-header{
+    .listpage-header-divider{
+      background-color: var(--l-bgc-1);
+      .el-divider__text {
+        background-color: var(--l-bgc-2);
+      }
+      .el-button{
+        background-color: var(--l-bgc-2);
+        color: var(--l-fc-2);
+        &:hover{
+          color: var(--l-fc-3)
+        }
+      }
+    }
+    .listpage-header, .toolbar{
       border-bottom-color: var(--l-c-3);
       .btn{
         &:hover{
@@ -323,30 +374,23 @@
           color: var(--l-fc-2);
         }
       }
-      .el-select-dropdown{
-        color: var(--l-fc-1);
-        border: none;
-        background-color: var(--l-bgc-1);
-        box-shadow: var(--l-bsc);
-      }
-      .el-select-dropdown__item{
-        color: var(--l-fc-1);
-        border: none;
+      .el-input-group__prepend{
         background-color: var(--l-bgc-1);
       }
-      .el-select-dropdown__item.hover{
-        background-color: var(--l-bgc-2);
-        box-shadow: var(--l-bsc);
-      }
-      .el-select-dropdown__item.selected{
+      .popper {
         color: var(--l-fc-1);
-        background-color: var(--l-bgc-2);
+        background-color: var(--l-bgc-1);
         box-shadow: var(--l-bsc);
+        li {
+          color: var(--l-fc-1);
+          background-color: var(--l-bgc-1);
+          &:hover{
+            background-color: var(--l-bgc-2);
+          }
+        }
       }
-      .el-select-dropdown__item.selected.hover{
-        color: var(--l-fc-1);
-        background-color: var(--l-bgc-2);
-        box-shadow: var(--l-bsc);
+      .popper__arrow, .popper__arrow::after{
+        border-bottom-color: var(--l-bgc-1);
       }
     }
     .listpage-body{
@@ -362,8 +406,8 @@
           background: var(--l-bgc-1);
         }
       }
+      /* 设置el-table的样式*/
       .show-table{
-       /* 设置el-table的样式*/
         .el-table{
           color: var(--l-fc-1);
           background-color: var(--l-bgc-1);

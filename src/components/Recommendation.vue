@@ -1,9 +1,9 @@
 <template>
-  <div class="listpage" id="recommendataions">
-    <div class="listpage-header" id="recommendataions-header">
-        <el-switch v-model="viewMode" active-text="海报" active-value="picture" inactive-text="列表" inactive-value="list" @change="updateViewMode"></el-switch>
+  <div class="listpage" id="recommendations">
+    <div class="listpage-header" id="recommendations-header">
+        <el-switch v-model="setting.recommendationViewMode" active-text="海报" active-value="picture" inactive-text="列表" inactive-value="table" @change="updateViewMode"></el-switch>
         <el-button type="text">视频数：{{ recommendations.length }}</el-button>
-        <el-select v-model="selectedAreas" size="small" multiple collapse-tags placeholder="地区" :popper-append-to-body="false">
+        <el-select v-model="selectedAreas" size="small" multiple placeholder="地区" popper-class="popper" :popper-append-to-body="false">
           <el-option
             v-for="item in areas"
             :key="item"
@@ -11,7 +11,7 @@
             :value="item">
           </el-option>
         </el-select>
-        <el-select v-model="selectedTypes" size="small" multiple collapse-tags placeholder="类型" :popper-append-to-body="false">
+        <el-select v-model="selectedTypes" size="small" multiple placeholder="类型" popper-class="popper" :popper-append-to-body="false">
           <el-option
             v-for="item in types"
             :key="item"
@@ -19,7 +19,7 @@
             :value="item">
           </el-option>
         </el-select>
-        <el-select v-model="sortKeyword" size="small" placeholder="排序" :popper-append-to-body="false">排序
+        <el-select v-model="sortKeyword" size="small" placeholder="排序" popper-class="popper" :popper-append-to-body="false">
           <el-option
             v-for="item in sortKeywords"
             :key="item"
@@ -29,10 +29,10 @@
         </el-select>
         <el-button :loading="loading" @click.stop="updateEvent" icon="el-icon-refresh">更新推荐</el-button>
     </div>
-    <div class="listpage-body" id="recommendataions-body" infinite-wrapper>
-      <div class="show-table" id="star-table" v-show="viewMode === 'list'">
+    <div class="listpage-body" id="recommendations-body" >
+      <div class="show-table" id="star-table" v-if="setting.recommendationViewMode === 'table'">
         <el-table size="mini" fit height="100%" row-key="id"
-        ref="recommendataionsTable"
+        ref="recommendationsTable"
         :data="filteredRecommendations"
         @row-click="detailEvent">
           <el-table-column
@@ -55,20 +55,21 @@
             width="100"
             align="center">
           </el-table-column>
-          <el-table-column v-if="filteredRecommendations.some(e => e.detail.note)"
-            prop="detail.note"
-            width="120"
-            label="备注">
-          </el-table-column>
           <el-table-column v-if="filteredRecommendations.some(e => e.rate)"
             prop="rate"
-            width="120"
+            align="center"
+            width="100"
             label="豆瓣评分">
+          </el-table-column>
+          <el-table-column v-if="filteredRecommendations.some(e => e.detail.note)"
+            prop="detail.note"
+            label="备注">
           </el-table-column>
           <el-table-column
             label="操作"
-            header-align="right"
-            align="right">
+            header-align="center"
+            align="right"
+            width="200">
             <template slot-scope="scope">
               <el-button @click.stop="playEvent(scope.row)" type="text">播放</el-button>
               <el-button @click.stop="shareEvent(scope.row)" type="text">分享</el-button>
@@ -78,8 +79,8 @@
           </el-table-column>
         </el-table>
       </div>
-      <div class="show-picture" id="star-picture" v-show="viewMode === 'picture'">
-        <Waterfall ref="recommendataionsWaterfall" :list="loadedRecommendations" :gutter="20" :width="240"
+      <div class="show-picture" id="star-picture" v-if="setting.recommendationViewMode === 'picture'">
+        <Waterfall ref="recommendationsWaterfall" :list="filteredRecommendations" :gutter="20" :width="240"
           :breakpoints="{
             1200: { //当屏幕宽度小于等于1200
               rowPerView: 4,
@@ -99,7 +100,7 @@
                   <div class="rate" v-if="props.data.rate && props.data.rate !== '暂无评分'">
                     <span>{{props.data.rate}}分</span>
                   </div>
-                  <img style="width: 100%" :src="props.data.detail.pic" alt="" @load="$refs.recommendataionsWaterfall.refresh()" @click="detailEvent(props.data)">
+                  <img style="width: 100%" :src="props.data.detail.pic" alt="" @load="$refs.recommendationsWaterfall.refresh()" @click="detailEvent(props.data)">
                   <div class="operate">
                     <div class="operate-wrap">
                       <span class="o-play" @click="playEvent(props.data)">播放</span>
@@ -119,7 +120,6 @@
               </div>
             </template>
         </Waterfall>
-        <infinite-loading force-use-infinite-wrapper :identifier="infiniteId" @infinite="infiniteHandler"></infinite-loading>
       </div>
     </div>
   </div>
@@ -129,30 +129,24 @@ import { mapMutations } from 'vuex'
 import { history, recommendation, setting } from '../lib/dexie'
 import zy from '../lib/site/tools'
 import Waterfall from 'vue-waterfall-plugin'
-import InfiniteLoading from 'vue-infinite-loading'
 const { clipboard } = require('electron')
 export default {
   name: 'recommendations',
   data () {
     return {
       recommendations: [],
-      loadedRecommendations: [],
       sites: [],
-      viewMode: 'picture',
       loading: false,
       types: [],
       selectedTypes: [],
       areas: [],
       selectedAreas: [],
       sortKeyword: '',
-      sortKeywords: ['上映', '评分', '默认'],
-      infiniteId: +new Date(),
-      batchSize: 50
+      sortKeywords: ['上映', '评分', '默认']
     }
   },
   components: {
-    Waterfall,
-    InfiniteLoading
+    Waterfall
   },
   computed: {
     view: {
@@ -187,8 +181,16 @@ export default {
         this.SET_SHARE(val)
       }
     },
+    setting: {
+      get () {
+        return this.$store.getters.getSetting
+      },
+      set (val) {
+        this.SET_SETTING(val)
+      }
+    },
     filteredRecommendations () {
-      var filteredData = this.loadedRecommendations.filter(x => (this.selectedAreas.length === 0) || this.selectedAreas.includes(x.detail.area))
+      let filteredData = this.recommendations.filter(x => (this.selectedAreas.length === 0) || this.selectedAreas.includes(x.detail.area))
       filteredData = filteredData.filter(x => (this.selectedTypes.length === 0) || this.selectedTypes.includes(x.detail.type))
       return filteredData
     }
@@ -196,10 +198,7 @@ export default {
   watch: {
     view () {
       if (this.view === 'Recommendation') {
-        this.getRecommendations()
-        if (this.$refs.recommendataionsWaterfall) {
-          this.$refs.recommendataionsWaterfall.refresh()
-        }
+        if (this.$refs.recommendationsWaterfall) this.$refs.recommendationsWaterfall.resize()
       }
     },
     sortKeyword () {
@@ -225,19 +224,7 @@ export default {
     }
   },
   methods: {
-    ...mapMutations(['SET_VIEW', 'SET_DETAIL', 'SET_VIDEO', 'SET_SHARE']),
-    infiniteHandler ($state) {
-      console.log('infiniteHandler' + this.loadedRecommendations.length)
-      if (this.loadedRecommendations.length === this.recommendations.length) {
-        console.log('complete')
-        $state.complete()
-      } else {
-        var nextBatch = this.recommendations.slice(this.loadedRecommendations.length, this.loadedRecommendations.length + this.batchSize)
-        this.loadedRecommendations.push(...nextBatch)
-        $state.loaded()
-        console.log('loaded' + this.loadedRecommendations.length)
-      }
-    },
+    ...mapMutations(['SET_VIEW', 'SET_DETAIL', 'SET_VIDEO', 'SET_SHARE', 'SET_SETTING']),
     detailEvent (e) {
       this.detail = {
         show: true,
@@ -249,24 +236,23 @@ export default {
       }
     },
     updateEvent () {
-      const url = 'https://raw.githubusercontent.com/Hunlongyu/ZY-Player/master/src/lib/dexie/iniData/Recommendations.json'
+      const url = 'https://raw.githubusercontent.com/cuiocean/ZY-Player-Resources/main/Recommendations/Recommendations.json'
       this.loading = true
       const axios = require('axios')
       axios.get(url).then(res => {
         if (res.status === 200) {
           if (res.data.length > 0) {
-            this.recommendations = res.data.sort(function (a, b) {
-              return b.detail.year - a.detail.year
-            })
+            this.recommendations = res.data
             recommendation.clear().then(recommendation.bulkAdd(this.recommendations))
             this.getFilterData()
-            this.$message.success('更新推荐成功')
+            this.$message.success('更新推荐成功. 仅根据作者cuiocean个人喜好推荐,不喜请无视.')
           }
         }
         this.loading = false
       }).catch(error => {
         this.loading = false
         this.$message.error('更新推荐失败. ' + error)
+        this.$message.warning('最新的推荐数据保存在Github上,请考虑使用代理或者等待下一版本内置数据更新.')
       })
     },
     async playEvent (e) {
@@ -282,8 +268,6 @@ export default {
       recommendation.remove(e.id).then(res => {
         if (res) {
           this.$message.warning('删除失败')
-        } else {
-          this.$message.success('删除成功')
         }
         this.getRecommendations()
       })
@@ -292,49 +276,18 @@ export default {
       this.share = {
         show: true,
         key: e.key,
-        info: e
+        info: e.detail
       }
     },
-    downloadEvent (e) {
-      zy.download(e.key, e.ids).then(res => {
-        if (res && res.dl && res.dl.dd) {
-          const text = res.dl.dd._t
-          if (text) {
-            const list = text.split('#')
-            let downloadUrl = ''
-            for (const i of list) {
-              const url = encodeURI(i.split('$')[1])
-              downloadUrl += (url + '\n')
-            }
-            clipboard.writeText(downloadUrl)
-            this.$message.success('『MP4』格式的链接已复制, 快去下载吧!')
-          } else {
-            this.$message.warning('没有查询到下载链接.')
-          }
-        } else {
-          var m3u8List = {}
-          zy.detail(e.key, e.ids).then(res => {
-            const dd = res.dl.dd
-            const type = Object.prototype.toString.call(dd)
-            if (type === '[object Array]') {
-              for (const i of dd) {
-                if (i._flag.indexOf('m3u8') >= 0) {
-                  m3u8List = i._t.split('#')
-                }
-              }
-            } else {
-              m3u8List = dd._t.split('#')
-            }
-            const list = [...m3u8List]
-            let downloadUrl = ''
-            for (const i of list) {
-              const url = encodeURI(i.split('$')[1])
-              downloadUrl += (url + '\n')
-            }
-            clipboard.writeText(downloadUrl)
-            this.$message.success('『M3U8』格式的链接已复制, 快去下载吧!')
-          })
-        }
+    async downloadEvent (e) {
+      const db = await history.find({ site: e.key, ids: e.ids })
+      let videoFlag
+      if (db) videoFlag = db.videoFlag
+      zy.download(e.key, e.ids, videoFlag).then(res => {
+        clipboard.writeText(res.downloadUrls)
+        this.$message.success(res.info)
+      }).catch((err) => {
+        this.$message.error(err.info)
       })
     },
     getRecommendations () {
@@ -342,8 +295,6 @@ export default {
         this.recommendations = res.sort(function (a, b) {
           return b.id - a.id
         })
-        this.loadedRecommendations = this.recommendations.slice(0, this.batchSize)
-        this.infiniteId += 1
         this.getFilterData()
       })
     },
@@ -351,32 +302,21 @@ export default {
       this.types = [...new Set(this.recommendations.map(ele => ele.detail.type))].filter(x => x)
       this.areas = [...new Set(this.recommendations.map(ele => ele.detail.area))].filter(x => x)
     },
-    getViewMode () {
-      setting.find().then(res => {
-        this.viewMode = res.recommendationViewMode
-      })
-    },
     updateViewMode () {
+      setTimeout(() => { if (this.$refs.recommendationsWaterfall) this.$refs.recommendationsWaterfall.refresh() }, 700)
       setting.find().then(res => {
-        res.recommendationViewMode = this.viewMode
+        res.recommendationViewMode = this.setting.recommendationViewMode
         setting.update(res)
       })
     }
   },
   created () {
     this.getRecommendations()
-    this.getViewMode()
   },
   mounted () {
-    window.addEventListener('resize', () => {
-      if (this.$refs.recommendataionsWaterfall && this.view === 'Recommendation') {
-        this.$refs.recommendataionsWaterfall.resize()
-        this.$refs.recommendataionsWaterfall.refresh()
-        setTimeout(() => {
-          this.$refs.recommendataionsWaterfall.refresh()
-        }, 500)
-      }
-    }, false)
+    addEventListener('resize', () => {
+      setTimeout(() => { if (this.$refs.recommendationsWaterfall) this.$refs.recommendationsWaterfall.resize() }, 500)
+    })
   }
 }
 </script>
