@@ -5,9 +5,7 @@
       <div class="info">
         <a @click="linkOpen('http://zyplayer.fun/')">官网</a>
         <a @click="linkOpen('https://github.com/Hunlongyu/ZY-Player')">Github</a>
-        <a @click="linkOpen('https://github.com/Hunlongyu/ZY-Player/releases/tag/v' + pkg.version)">v{{pkg.version}}更新日志</a>
-        <a @click="linkOpen('https://github.com/Hunlongyu/ZY-Player/issues/80')">常见问题</a>
-        <a @click="linkOpen('https://github.com/Hunlongyu/ZY-Player/issues')">反馈建议</a>
+        <a @click="linkOpen('https://github.com/Hunlongyu/ZY-Player/discussions/776')">软件完全免费，如遇收费，请立即给差评并退费！</a>
         <a style="color:#38dd77" @click="openUpdate()" v-show="update.find" >最新版本v{{update.version}}</a>
       </div>
       <div class="shortcut">
@@ -90,8 +88,8 @@
           <div class="zy-select">
             <div class="vs-placeholder vs-noAfter" @click="show.configDefaultParseUrlDialog = true">设置默认解析接口</div>
           </div>
-          <div class="zy-input" @click="toggleExcludeRootClasses">
-           <input type="checkbox" v-model = "d.excludeRootClasses" @change="updateSettingEvent"> 屏蔽主分类
+          <div class="zy-select">
+            <div class="vs-placeholder vs-noAfter" @click="show.configSitesDataUrlDialog = true">设置源站接口文件</div>
           </div>
         </div>
       </div>
@@ -107,6 +105,15 @@
                 <li :class="d.proxy.type === 'manual' ? 'active' : ''" @click="changeProxyType('manual')">手动指定代理</li>
               </ul>
             </div>
+          </div>
+        </div>
+      </div>
+      <div class="site">
+        <div class="title">窗口及播放</div>
+        <div class="site-box">
+          <div class="zy-input">
+            <input type="checkbox" v-model = "d.restoreWindowPositionAndSize" @change="updateSettingEvent"> 记录并恢复窗口位置和大小
+            <input type="checkbox" v-model = "d.pauseWhenMinimize" @change="updateSettingEvent"> 最小化时暂停播放
           </div>
         </div>
       </div>
@@ -139,13 +146,6 @@
           </div>
         </div>
       </div>
-      <div class="qrcode">
-        <div class="title">请作者吃辣条</div>
-        <div class="qrcode-box">
-          <img class="qrcode-item" src="../assets/image/wepay-hunlongyu.png">
-          <img class="qrcode-item" src="../assets/image/wepay_cuiocean.jpg">
-        </div>
-      </div>
       <div class="clearDB">
         <span @click="clearDBEvent" class="clearBtn">软件重置</span>
         <span @click="changePasswordEvent" class="clearBtn">设置密码</span>
@@ -158,14 +158,28 @@
     <div> <!-- 设置默认解析接口 -->
       <el-dialog :visible.sync="show.configDefaultParseUrlDialog" v-if='show.configDefaultParseUrlDialog' title="设置默认解析接口" :append-to-body="true" @close="closeDialog">
         <el-form label-width="45px" label-position="left">
-          <el-form-item label="URL:" prop='defaultParseURL'>
+          <el-form-item label="URL:">
             <el-input v-model="setting.defaultParseURL" :autosize="{ minRows: 2, maxRows: 4}" type="textarea" placeholder="请输入解析接口地址，为空时会自动设置，重置时会自动更新默认接口地址"/>
           </el-form-item>
         </el-form>
         <span slot="footer" class="dialog-footer">
           <el-button @click="closeDialog">取消</el-button>
-          <el-button type="danger" @click="get7kParseURL">重置</el-button>
+          <el-button type="danger" @click="resetDefaultParseURL">重置</el-button>
           <el-button type="primary" @click="configDefaultParseURL">确定</el-button>
+        </span>
+      </el-dialog>
+    </div>
+    <div> <!-- 设置源站接口文件 -->
+      <el-dialog :visible="show.configSitesDataUrlDialog" v-if='show.configSitesDataUrlDialog' title="设置源站接口文件" :append-to-body="true" @close="closeDialog">
+        <el-form label-width="45px" label-position="left">
+          <el-form-item label="URL:">
+            <el-input v-model="setting.sitesDataURL" :autosize="{ minRows: 2, maxRows: 4}" type="textarea" placeholder="请输入解析接口地址，为空时会自动设置，重置时会自动更新默认接口地址"/>
+          </el-form-item>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="closeDialog">取消</el-button>
+          <el-button type="danger" @click="resetDefaultSitesDataURL">重置</el-button>
+          <el-button type="primary" @click="configSitesDataURL">确定</el-button>
         </span>
       </el-dialog>
     </div>
@@ -241,8 +255,9 @@
 import { mapMutations } from 'vuex'
 import pkg from '../../package.json'
 import { setting, sites, shortcut } from '../lib/dexie'
-import { sites as defaultSites, localKey as defaultShortcuts } from '../lib/dexie/initData'
-import { shell, clipboard, remote, ipcRenderer } from 'electron'
+import { localKey as defaultShortcuts } from '../lib/dexie/initData'
+import { shell, clipboard, ipcRenderer } from 'electron'
+const remote = require('@electron/remote')
 import db from '../lib/dexie/dexie'
 import zy from '../lib/site/tools'
 export default {
@@ -260,7 +275,8 @@ export default {
         changePasswordDialog: false,
         proxy: false,
         proxyDialog: false,
-        configDefaultParseUrlDialog: false
+        configDefaultParseUrlDialog: false,
+        configSitesDataUrlDialog: false
       },
       d: { },
       latestVersion: pkg.version,
@@ -310,13 +326,28 @@ export default {
         this.d = res
         this.setting = this.d
         if (!this.setting.defaultParseURL) this.configDefaultParseURL()
+        if (!this.setting.sitesDataURL) this.resetDefaultSitesDataURL()
+      })
+    },
+    async getDefaultSites () {
+      const s = await setting.find()
+      zy.getDefaultSites(s.sitesDataURL).then(res => {
+        if (res && typeof res === 'string') {
+          const json = JSON.parse(res)
+          sites.clear().then(sites.bulkAdd(json))
+        }
+        if (res && typeof res === 'object') {
+          sites.clear().then(sites.bulkAdd(res))
+        }
+      }).catch(error => {
+        this.$message.error('获取云端源站失败. ' + error)
       })
     },
     getSites () {
       sites.all().then(res => {
         if (res.length <= 0) {
           this.$message.warning('检测到视频源未能正常加载, 即将重置源.')
-          sites.clear().then(sites.bulkAdd(defaultSites).then(this.getSites()))
+          this.getDefaultSites()
         }
       })
     },
@@ -346,18 +377,22 @@ export default {
       this.d.excludeRootClasses = !this.d.excludeRootClasses
       this.updateSettingEvent()
     },
-    async get7kParseURL () {
-      this.$message.info('正在获取7K源解析地址...')
-      const parseURL = await zy.get7kParseURL()
-      if (parseURL.startsWith('http')) {
-        this.$message.success('获取成功，更新应用默认解析接口地址...')
-        this.setting.defaultParseURL = parseURL
-      }
+    async resetDefaultParseURL () {
+      this.setting.defaultParseURL = 'https://jx.bpba.cc/?v='
     },
     async configDefaultParseURL () {
-      if (!this.setting.defaultParseURL) await this.get7kParseURL()
-      this.d.defaultParseURL = this.setting.defaultParseURL.trim()
+      if (!this.setting.defaultParseURL) await this.resetDefaultParseURL()
+      this.d.defaultParseURL = this.setting.defaultParseURL?.trim()
       this.show.configDefaultParseUrlDialog = false
+      this.updateSettingEvent()
+    },
+    resetDefaultSitesDataURL () {
+      this.setting.sitesDataURL = 'https://raw.iqiq.io/Hunlongyu/ZY-Player-Resources/main/Sites/20220713.json'
+    },
+    configSitesDataURL () {
+      if (!this.setting.sitesDataURL) this.resetDefaultSitesDataURL()
+      this.d.sitesDataURL = this.setting.sitesDataURL
+      this.show.configSitesDataUrlDialog = false
       this.updateSettingEvent()
     },
     selectLocalPlayer () {
@@ -403,6 +438,7 @@ export default {
       this.show.checkPasswordDialog = false
       this.show.changePasswordDialog = false
       this.show.configDefaultParseUrlDialog = false
+      this.show.configSitesDataUrlDialog = false
       if (this.show.proxyDialog) {
         this.show.proxyDialog = false
         this.setting.proxy.type = 'none'

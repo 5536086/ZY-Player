@@ -50,7 +50,7 @@
             <polyline points="12 5 12 12 16 16"></polyline>
           </svg>
         </span>
-        <span class="zy-svg" @click="starEvent" :class="isStar ? 'active' : ''" v-show="right.list.length > 0">
+        <span class="zy-svg" @click="starEvent" :class="isStar ? 'active' : ''" v-show="right.list.length > 0 || isStar">
           <svg role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-labelledby="favouriteIconTitle">
             <title id="favouriteIconTitle">收藏</title>
             <path d="M12,21 L10.55,19.7051771 C5.4,15.1242507 2,12.1029973 2,8.39509537 C2,5.37384196 4.42,3 7.5,3 C9.24,3 10.91,3.79455041 12,5.05013624 C13.09,3.79455041 14.76,3 16.5,3 C19.58,3 22,5.37384196 22,8.39509537 C22,12.1029973 18.6,15.1242507 13.45,19.7149864 L12,21 Z"></path>
@@ -217,7 +217,7 @@
       </div>
     </transition>
     <transition name="slideX">
-      <div v-if="state.showChannelList" class="list" v-clickoutside="closeListEvent">
+      <div v-if="state.showChannelList && channelList && channelList.length > 0" class="list" v-clickoutside="closeListEvent">
          <div class="list-top">
           <span class="list-top-title">频道列表</span>
           <span class="list-top-close zy-svg" @click="state.showChannelList = false">
@@ -252,6 +252,7 @@ import { mapMutations } from 'vuex'
 import { star, history, setting, shortcut, mini, channelList, sites } from '../lib/dexie'
 import zy from '../lib/site/tools'
 import Player from 'xgplayer'
+import 'xgplayer-mp4'
 import HlsJsPlayer from 'xgplayer-hls.js'
 import FlvJsPlayer from 'xgplayer-flv.js'
 import mt from 'mousetrap'
@@ -259,7 +260,8 @@ import Clickoutside from 'element-ui/src/utils/clickoutside'
 import { exec, execFile } from 'child_process'
 import PinyinMatch from 'pinyin-match'
 
-const { remote, clipboard } = require('electron')
+const { clipboard } = require('electron')
+const remote = require('@electron/remote')
 const win = remote.getCurrentWindow()
 const URL = require('url')
 const VIDEO_DETAIL_CACHE = {}
@@ -342,7 +344,7 @@ export default {
         videoTitle: true,
         airplay: true,
         closeVideoTouch: true,
-        ignores: ['cssFullscreen', 'replay', 'error'], // 为了切换播放器类型时避免显示错误刷新，暂时忽略错误
+        ignores: ['replay', 'error'], // 为了切换播放器类型时避免显示错误刷新，暂时忽略错误
         preloadTime: 300
       },
       state: {
@@ -445,6 +447,9 @@ export default {
       set (val) {
         this.SET_DetailCache(val)
       }
+    },
+    VideoEssentialInfo () {
+      return this.video.key + '@' + this.video.info.id + '@' + this.video.info.index
     }
   },
   watch: {
@@ -458,12 +463,11 @@ export default {
         }
       }
     },
-    video: {
+    VideoEssentialInfo: {
       handler () {
         if (this.changingIPTV) return
         this.getUrls()
-      },
-      deep: true
+      }
     },
     setting: {
       handler () {
@@ -639,6 +643,7 @@ export default {
     },
     playVideo (index = 0, time = 0) {
       this.isLive = false
+      this.isStar = false
       this.exportablePlaylist = false
       this.fetchPlaylist().then(async (fullList) => {
         let playlist = fullList[0].list // ZY支持的已移到首位
@@ -654,9 +659,9 @@ export default {
           const currentSite = await sites.find({ key: this.video.key })
           this.$message.info('即将调用解析接口播放，请等待...')
           if (currentSite.jiexiUrl) {
-            this.onlineUrl = /^\s*(default|默认)\s*$/i.test(currentSite.jiexiUrl) ? this.setting.defaultParseURL + url : currentSite.jiexiUrl + url
+            this.onlineUrl = currentSite.jiexiUrl + url
           } else {
-            this.onlineUrl = url
+            this.onlineUrl = this.setting.defaultParseURL + url
           }
           this.videoPlaying('online')
           return
@@ -710,7 +715,7 @@ export default {
               name: res.name
             })
             resolve(res.fullList)
-          })
+          }).catch(err => { this.$message.error('播放地址可能已失效，请换源并调整收藏', err); this.name = this.video.info.name; this.updateStar(); this.otherEvent() })
         } else {
           res = this.DetailCache[cacheKey]
           this.name = res.name
@@ -1567,7 +1572,7 @@ export default {
     },
     minMaxEvent () {
       win.on('minimize', () => {
-        if (this.xg && this.xg.hasStart) {
+        if (this.xg && this.xg.hasStart && this.setting.pauseWhenMinimize) {
           this.xg.pause()
         }
       })
@@ -1663,6 +1668,9 @@ export default {
   cursor: pointer;
   margin-left: 3px;
 }
+.xgplayer-skin-default .xg-btn-playPrev {
+  margin-left: 50px;
+}
 .xgplayer-skin-default .xg-btn-quitMiniMode {
   display: none;
 }
@@ -1739,12 +1747,6 @@ export default {
 }
 .xgplayer-skin-default .xgplayer-playbackrate {
   width: 40px !important;
-}
-.xgplayer-skin-default .xgplayer-playbackrate .name {
-  top: 10px !important;
-}
-.xgplayer-skin-default .xgplayer-playbackrate ul {
-  bottom: 20px;
 }
 .xgplayer-skin-default .xgplayer-playbackrate ul li {
   font-size: 13px !important;

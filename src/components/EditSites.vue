@@ -2,7 +2,7 @@
   <div class="listpage" id="sites">
     <div class="listpage-header" v-show="!enableBatchEdit">
           <el-switch v-model="enableBatchEdit" active-text="批处理分组">></el-switch>
-          <el-checkbox v-model="setting.excludeR18Films" @change="excludeR18FilmsChangeEvent">屏蔽福利片</el-checkbox>
+          <el-button @click="openFilterKeywordsDiag" icon="el-icon-key">关键词过滤</el-button>
           <el-button @click="addSite" icon="el-icon-document-add">新增</el-button>
           <el-button @click="exportSites" icon="el-icon-upload2" title="导出全部，自动添加扩展名">导出</el-button>
           <el-button @click="importSites" icon="el-icon-download" title="支持同时导入多个文件">导入</el-button>
@@ -41,7 +41,18 @@
             <template slot-scope="scope">
               <el-switch
                 v-model="scope.row.isActive"
-                @click.native.stop='isActiveChangeEvent(scope.row)'>
+                @click.native.stop='propChangeEvent(scope.row)'>
+              </el-switch>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="reverseOrder"
+            width="120"
+            label="倒序排列">
+            <template slot-scope="scope">
+              <el-switch
+                v-model="scope.row.reverseOrder"
+                @click.native.stop='propChangeEvent(scope.row)'>>
               </el-switch>
             </template>
           </el-table-column>
@@ -83,7 +94,7 @@
      </div>
     <!-- 编辑页面 -->
     <div>
-      <el-dialog :visible.sync="dialogVisible" v-if='dialogVisible' :title="dialogType==='edit'?'编辑源':'新增源'" :append-to-body="true" @close="closeDialog">
+      <el-dialog :visible.sync="editSiteDialogVisible" v-if='editSiteDialogVisible' :title="dialogType==='edit'?'编辑源':'新增源'" :append-to-body="true" @close="closeDialog">
         <el-form :model="siteInfo" ref='siteInfo' label-width="75px" label-position="left" :rules="rules">
           <el-form-item label="源站名" prop='name'>
             <el-input v-model="siteInfo.name" placeholder="请输入源站名" />
@@ -112,16 +123,36 @@
         </span>
       </el-dialog>
     </div>
+    <!-- 设置过滤关键词页面 -->
+    <div>
+      <el-dialog :visible.sync="filterKeywordsDialogVisible" v-if='filterKeywordsDialogVisible' :title="'分类过滤'" :append-to-body="true" @close="closeDialog">
+        <el-form>
+          <el-switch v-model="excludeRootClasses" active-text="开启主分类过滤">></el-switch>
+          <el-form-item>
+            <el-input v-model="rootClassFilterKeywords" :autosize="{ minRows: 3, maxRows: 6}" type="textarea" placeholder="请输入过滤关键词" />
+          </el-form-item>
+        </el-form>
+        <el-form>
+          <el-switch v-model="excludeR18Films" active-text="开启福利分类过滤">></el-switch>
+          <el-form-item>
+            <el-input v-model="r18ClassFilterKeywords" :autosize="{ minRows: 3, maxRows: 6}" type="textarea" placeholder="请输入过滤关键词" />
+          </el-form-item>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="closeDialog">取消</el-button>
+          <el-button type="primary" @click="saveFilterKeywords">保存</el-button>
+        </span>
+      </el-dialog>
+    </div>
   </div>
 </template>
 <script>
 import { mapMutations } from 'vuex'
 import { sites, setting } from '../lib/dexie'
 import zy from '../lib/site/tools'
-import { remote } from 'electron'
-import { sites as defaultSites } from '../lib/dexie/initData'
 import fs from 'fs'
 import Sortable from 'sortablejs'
+const remote = require('@electron/remote')
 
 export default {
   name: 'editSites',
@@ -130,7 +161,8 @@ export default {
       show: false,
       sites: [],
       dialogType: 'new',
-      dialogVisible: false,
+      editSiteDialogVisible: false,
+      filterKeywordsDialogVisible: false,
       siteInfo: {
         key: '',
         name: '',
@@ -140,6 +172,10 @@ export default {
         group: '',
         isActive: true
       },
+      excludeRootClasses: true,
+      excludeR18Films: true,
+      rootClassFilterKeywords: [],
+      r18ClassFilterKeywords: [],
       siteGroup: [],
       rules: {
         name: [
@@ -205,12 +241,6 @@ export default {
   },
   methods: {
     ...mapMutations(['SET_SETTING']),
-    excludeR18FilmsChangeEvent () {
-      setting.find().then(res => {
-        res.excludeR18Films = this.setting.excludeR18Films
-        setting.update(res)
-      })
-    },
     selectionCellClick (selection, row) {
       if (this.shiftDown && this.selectionBegin !== '' && selection.includes(row)) {
         this.selectionEnd = row.id
@@ -250,6 +280,11 @@ export default {
     },
     getSites () {
       sites.all().then(res => {
+        res.forEach(element => {
+          if (element.reverseOrder === null || element.reverseOrder === undefined) {
+            element.reverseOrder = false
+          }
+        })
         this.sites = res
       })
     },
@@ -262,6 +297,29 @@ export default {
       }
       this.siteGroup = arr
     },
+    openFilterKeywordsDiag () {
+      this.excludeRootClasses = this.setting.excludeRootClasses
+      this.excludeR18Films = this.setting.excludeR18Films
+      this.rootClassFilterKeywords = this.setting.rootClassFilter?.join()
+      this.r18ClassFilterKeywords = this.setting.r18ClassFilter?.join()
+      this.filterKeywordsDialogVisible = true
+    },
+    saveFilterKeywords () {
+      // 移除空格,然后按逗号分开
+      this.setting.rootClassFilter = this.rootClassFilterKeywords?.replace(/\s/g, '').split(',')
+      this.setting.r18ClassFilter = this.r18ClassFilterKeywords?.replace(/\s/g, '').split(',')
+      this.setting.classFilter = []
+      this.setting.excludeRootClasses = this.excludeRootClasses
+      if (this.excludeRootClasses) {
+        this.setting.classFilter = this.setting.classFilter.concat(this.setting.rootClassFilter)
+      }
+      this.setting.excludeR18Films = this.excludeR18Films
+      if (this.excludeR18Films) {
+        this.setting.classFilter = this.setting.classFilter.concat(this.setting.r18ClassFilter)
+      }
+      setting.update(this.setting)
+      this.filterKeywordsDialogVisible = false
+    },
     addSite () {
       if (this.checkAllSitesLoading) {
         this.$message.info('正在检测, 请勿操作.')
@@ -269,7 +327,7 @@ export default {
       }
       this.getSitesGroup()
       this.dialogType = 'new'
-      this.dialogVisible = true
+      this.editSiteDialogVisible = true
       this.siteInfo = {
         key: '',
         name: '',
@@ -287,12 +345,13 @@ export default {
       }
       this.getSitesGroup()
       this.dialogType = 'edit'
-      this.dialogVisible = true
+      this.editSiteDialogVisible = true
       this.siteInfo = siteInfo
       this.editOldkey = siteInfo.key
     },
     closeDialog () {
-      this.dialogVisible = false
+      this.editSiteDialogVisible = false
+      this.filterKeywordsDialogVisible = false
       this.getSites()
     },
     removeEvent (e) {
@@ -349,7 +408,7 @@ export default {
           group: ''
         }
         this.dialogType === 'edit' ? this.$message.success('修改成功！') : this.$message.success('新增源成功！')
-        this.dialogVisible = false
+        this.editSiteDialogVisible = false
         this.getSites()
       })
       this.editOldkey = ''
@@ -380,43 +439,75 @@ export default {
       }
       const options = {
         filters: [
-          { name: 'JSON file', extensions: ['json'] }
+          { name: '支持的文件格式', extensions: ['json', 'txt'] }
         ],
         properties: ['openFile', 'multiSelections']
       }
       remote.dialog.showOpenDialog(options).then(result => {
         if (!result.canceled) {
           result.filePaths.forEach(file => {
-            const str = fs.readFileSync(file)
-            const json = JSON.parse(str)
-            json.forEach(ele => {
-              if (ele.api && this.sites.filter(x => x.key === ele.key).length === 0 && this.sites.filter(x => x.name === ele.name && x.api === ele.api).length === 0) {
-                // 不含该key 同时也不含名字和url一样的
-                if (ele.isActive === undefined) {
-                  ele.isActive = true
+            if (file.endsWith('json')) {
+              const str = fs.readFileSync(file)
+              const json = JSON.parse(str)
+              json.forEach(ele => {
+                if (ele.api && this.sites.filter(x => x.key === ele.key).length === 0 && this.sites.filter(x => x.name === ele.name && x.api === ele.api).length === 0) {
+                  // 不含该key 同时也不含名字和url一样的
+                  if (ele.isActive === undefined) {
+                    ele.isActive = true
+                  }
+                  if (ele.group === undefined) {
+                    ele.group = '导入'
+                  }
+                  this.sites.push(ele)
                 }
-                if (ele.group === undefined) {
-                  ele.group = '导入'
-                }
-                this.sites.push(ele)
+              })
+              this.resetId(this.sites)
+              sites.clear().then(sites.bulkAdd(this.sites))
+              this.$message.success('导入成功')
+              this.getSites()
+            }
+            if (file.endsWith('txt')) {
+              try {
+                const txt = fs.readFileSync(file, 'utf8')
+                const json = JSON.parse(txt)
+                json.forEach(ele => {
+                  if (ele.api && this.sites.filter(x => x.key === ele.key).length === 0 && this.sites.filter(x => x.name === ele.name && x.api === ele.api).length === 0) {
+                    // 不含该key 同时也不含名字和url一样的
+                    if (ele.isActive === undefined) {
+                      ele.isActive = true
+                    }
+                    if (ele.group === undefined) {
+                      ele.group = '导入'
+                    }
+                    this.sites.push(ele)
+                  }
+                })
+                this.resetId(this.sites)
+                sites.clear().then(sites.bulkAdd(this.sites))
+                this.$message.success('导入成功')
+                this.getSites()
+              } catch (error) {
+                this.$message.warning('导入失败')
               }
-            })
-            this.resetId(this.sites)
-            sites.clear().then(sites.bulkAdd(this.sites))
-            this.$message.success('导入成功')
-            this.getSites()
+            }
           })
         }
       })
     },
     resetSitesEvent () {
-      this.stopFlag = true
-      if (this.checkAllSitesLoading) {
-        this.$message.info('部分检测还未完全终止, 请稍等...')
-        return
+      let url = this.setting.sitesDataURL
+      if (!url) {
+        url = 'https://raw.iqiq.io/Hunlongyu/ZY-Player-Resources/main/Sites/20220713.json'
       }
-      sites.clear().then(sites.bulkAdd(defaultSites).then(this.getSites()))
-      this.$message.success('重置源成功')
+      zy.getDefaultSites(url).then(res => {
+        if (res.length > 0) {
+          sites.clear().then(sites.bulkAdd(res))
+          this.$message.success('重置源成功')
+          this.getSites()
+        }
+      }).catch(error => {
+        this.$message.error('导入云端源站失败. ' + error)
+      })
     },
     moveToTopEvent (i) {
       if (this.checkAllSitesLoading) {
@@ -431,9 +522,10 @@ export default {
         this.sites = this.$refs.editSitesTable.tableData
       }
     },
-    isActiveChangeEvent (row) {
+    propChangeEvent (row) {
       sites.remove(row.id)
       sites.add(row)
+      this.getSites()
     },
     resetId (inArray) {
       let id = 1
